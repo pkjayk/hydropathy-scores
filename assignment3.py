@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 #import numpy & be able to call it as "np"
 import numpy as np
+import scipy as sp
+import scipy.stats
 
 #import sys
 import sys
@@ -14,10 +16,10 @@ import autocorrelation
 
 #explanation of what this code does if you make an input error by
 #having less than three arguments
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
    print("")
    print("My test script to calculate autocorrelation scores for amino acid fasta files.")
-   print("Usage: args.py -i <inputfile> -o <outputfile>")
+   print("Usage: args.py -i <inputfile> -o <outputfile> -w <window size>")
    print("-i: input file")
    print("-o: output file")
    print("")
@@ -29,6 +31,8 @@ for i in range(len(sys.argv)):
         InFileName = sys.argv[i+1]
     elif sys.argv[i] == "-o":
         OutFileName = sys.argv[i+1]
+    elif sys.argv[i] == "-w":
+        window = sys.argv[i+1]
 
 
 # open hydropathy values
@@ -53,9 +57,13 @@ print(Hydropathy)
 InFile = open(InFileName, 'r')
 
 lineNumber = 1
+ProtName = ""
 
 # loop thru the lines to get the sequence
 for line in InFile:
+  if(lineNumber == 1):
+    ProtName = line.strip('>')
+    ProtName = ProtName.strip()
 
   # get lines after first line
   if(lineNumber > 1): 
@@ -65,11 +73,11 @@ for line in InFile:
 
 InFile.close()
 
-OutFile = open(OutFileName,'w')
+# open output file in Append mode
+OutFile = open(OutFileName,'a')
 
 
 # creating window size as raw input, window size we will put in when we run the script in UNIX is 9
-window = input("Window size?")
 window=int(window)
 Value=0
 window_counter=0
@@ -82,12 +90,13 @@ for i in range(len(ProtSeq)):
     if(i>(window-1) and i<=(len(ProtSeq)-window)):
         # value for the window
         Value=Value-Hydropathy[ProtSeq[i-window]]
-        OutString = "%d,%.2f" % (window_counter, Value)
-        OutFile.write(OutString + "\n")
+        #OutString = "%d,%.2f" % (window_counter, Value)
+        #OutFile.write(OutString + "\n")
 
     HydropathyValues.append(Value)
     window_counter+=1
 
+print(HydropathyValues)
 
 # get ACF values from hydropathy values
 acf = list(autocorrelation.acf(HydropathyValues))
@@ -95,24 +104,41 @@ acf = list(autocorrelation.acf(HydropathyValues))
 # calculate the length of acf list for confidence interval (95%)
 acfLength = len(acf)
 
-# square root
-acfSquare = float(np.sqrt(acfLength))
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0*np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
+    return m, m-h, m+h
 
-# confInterval (+/-) this number
-confInterval = 2/(acfSquare)
+# list of True Mean, and range of 95% confidence interval values
+acfMeanAndRanges = mean_confidence_interval(acf)
 
 count = 0
 
 # loop through each value in acf list
 for i in acf:
-  if i > confInterval or i < -confInterval:
-    count = count + 1
-
-print(count)
+  # check if i is between the values
+  if acfMeanAndRanges[1] <= i <= acfMeanAndRanges[2]:
+    # add to count b/c outside confidence interval
+    True
+  else:
+    count += 1
 
 proportion = count/acfLength
 
-print(proportion)
+print(str(proportion) + " of correlation values are outside of the 95% confidence interval.")
+
+# initialize var
+outOfConfidenceInterval = "No"
+
+# check if proportion of values is outside of confidence interval
+if proportion > 0.05:
+  outOfConfidenceInterval = "Yes"
+
+# output protein name, proportion acf values outside confidence interval, yes/no, and max hydropathy val
+OutString = "%s,%.2f, %s, %.2f" % (ProtName, proportion, outOfConfidenceInterval, max(HydropathyValues))
+OutFile.write(OutString + "\n")
 
 InFile.close()
 OutFile.close()
