@@ -10,6 +10,14 @@ import sys
 # turn on debug mode
 Debug = True
 
+# helper function that calculates confidence interval and ranges
+def mean_confidence_interval(data, confidence=0.95):
+    a = 1.0*np.array(data)
+    n = len(a)
+    m, se = np.mean(a), scipy.stats.sem(a)
+    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
+    return m, m-h, m+h
+
 #import autocorrelation.py script provided; includes numpy; allows acf command
 #import autocorrelation.py
 import autocorrelation
@@ -25,23 +33,35 @@ if len(sys.argv) < 3:
    print("")
    sys.exit()
 
-#creating infile and outfile, enable usage of arguments
+# creating infile and outfile, enable usage of arguments
 for i in range(len(sys.argv)):
+    # input file arg
     if sys.argv[i] == "-i":
+        # store input file name
         InFileName = sys.argv[i+1]
+    # output file arg
     elif sys.argv[i] == "-o":
+        # store output fle name
         OutFileName = sys.argv[i+1]
+    # window size arg
     elif sys.argv[i] == "-w":
+        # store window size
         window = sys.argv[i+1]
 
 
-# open hydropathy values
+# set file name
 HydropathyFileName = "amino_acid_hydropathy_values.txt"
+# open hydropathy values file
 HydropathyFile = open(HydropathyFileName, 'r')
+# set data array
 Data=[]
+# set Hydropathy dictionary
 Hydropathy={}
+
+# initialize line number at 0
 LineNumber = 0
 
+# loop thru Hydropathy file and associate value with amino acid
 for Line in HydropathyFile:
     if(LineNumber>0):
         Line = Line.strip("\n")
@@ -50,13 +70,12 @@ for Line in HydropathyFile:
     LineNumber = LineNumber + 1
 HydropathyFile.close()
 
-print(Hydropathy)
-
-
 #open the infile and outfile for our data
 InFile = open(InFileName, 'r')
 
+# initialize line number (1 to make it more human-readable)
 lineNumber = 1
+# initialize ProtName
 ProtName = ""
 
 # loop thru the lines to get the sequence
@@ -69,8 +88,10 @@ for line in InFile:
   if(lineNumber > 1): 
     ProtSeq = line.strip('\n')
   
+  # increment
   lineNumber = lineNumber + 1
 
+# close the included file
 InFile.close()
 
 # open output file in Append mode
@@ -104,29 +125,25 @@ acf = list(autocorrelation.acf(HydropathyValues))
 # calculate the length of acf list for confidence interval (95%)
 acfLength = len(acf)
 
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0*np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
-    return m, m-h, m+h
-
 # list of True Mean, and range of 95% confidence interval values
 acfMeanAndRanges = mean_confidence_interval(acf)
 
+# set count at 0
 count = 0
 
 # loop through each value in acf list
 for i in acf:
   # check if i is between the values
   if acfMeanAndRanges[1] <= i <= acfMeanAndRanges[2]:
-    # add to count b/c outside confidence interval
-    True
+    True #arbitrary true
   else:
+    # add to count b/c outside confidence interval
     count += 1
 
+# calculate proportion of acf values outside confidence interval
 proportion = count/acfLength
 
+# tell user how many outside confidence interval for this particular file
 print(str(proportion) + " of correlation values are outside of the 95% confidence interval.")
 
 # initialize var
@@ -138,7 +155,8 @@ if proportion > 0.05:
 
 # output protein name, proportion acf values outside confidence interval, yes/no, and max hydropathy val
 OutString = "%s,%.2f, %s, %.2f" % (ProtName, proportion, outOfConfidenceInterval, max(HydropathyValues))
+# write to output file, add line break
 OutFile.write(OutString + "\n")
 
-InFile.close()
+# close output file
 OutFile.close()
