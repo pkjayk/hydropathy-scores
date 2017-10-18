@@ -65,9 +65,6 @@ for line in InFile:
 
 InFile.close()
 
-print(ProtSeq)
-#print(autocorrelation.acf(list(sequence).astype(np.float)))
-
 OutFile = open(OutFileName,'w')
 
 
@@ -92,22 +89,30 @@ for i in range(len(ProtSeq)):
     window_counter+=1
 
 
+# get ACF values from hydropathy values
 acf = list(autocorrelation.acf(HydropathyValues))
 
+# calculate the length of acf list for confidence interval (95%)
 acfLength = len(acf)
 
-acfSquare = np.sqrt(acfLength)
+# square root
+acfSquare = float(np.sqrt(acfLength))
+
+# confInterval (+/-) this number
+confInterval = 2/(acfSquare)
 
 count = 0
 
-print(acf)
-# loop through each 
+# loop through each value in acf list
 for i in acf:
-  if i > acfSquare or i < acfSquare:
+  if i > confInterval or i < -confInterval:
     count = count + 1
 
 print(count)
 
+proportion = count/acfLength
+
+print(proportion)
 
 InFile.close()
 OutFile.close()
