@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 #import numpy & be able to call it as "np"
 import numpy as np
-import scipy as sp
-import scipy.stats
 
 #import sys
 import sys
@@ -10,16 +8,7 @@ import sys
 # turn on debug mode
 Debug = True
 
-# helper function that calculates confidence interval and ranges
-def mean_confidence_interval(data, confidence=0.95):
-    a = 1.0*np.array(data)
-    n = len(a)
-    m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
-    return m, m-h, m+h
-
 #import autocorrelation.py script provided; includes numpy; allows acf command
-#import autocorrelation.py
 import autocorrelation
 
 #explanation of what this code does if you make an input error by
@@ -111,13 +100,9 @@ for i in range(len(ProtSeq)):
     if(i>(window-1) and i<=(len(ProtSeq)-window)):
         # value for the window
         Value=Value-Hydropathy[ProtSeq[i-window]]
-        #OutString = "%d,%.2f" % (window_counter, Value)
-        #OutFile.write(OutString + "\n")
 
     HydropathyValues.append(Value)
     window_counter+=1
-
-print(HydropathyValues)
 
 # get ACF values from hydropathy values
 acf = list(autocorrelation.acf(HydropathyValues))
@@ -125,8 +110,27 @@ acf = list(autocorrelation.acf(HydropathyValues))
 # calculate the length of acf list for confidence interval (95%)
 acfLength = len(acf)
 
-# list of True Mean, and range of 95% confidence interval values
-acfMeanAndRanges = mean_confidence_interval(acf)
+## SQ RT calculation of confidence interval
+acfValue = 0
+
+# calculate acfValue to get mean
+for i in acf:
+  acfValue += i
+
+# true mean
+trueMean = acfValue/acfLength
+
+# square root
+acfSquare = float(np.sqrt(acfLength))
+
+# confInterval = (+/-) this number
+confInterval = 2/(acfSquare)
+
+# bottom bound
+meanMinus = trueMean - confInterval
+
+# upper bound
+meanPlus  = trueMean + confInterval
 
 # set count at 0
 count = 0
@@ -134,7 +138,7 @@ count = 0
 # loop through each value in acf list
 for i in acf:
   # check if i is between the values
-  if acfMeanAndRanges[1] <= i <= acfMeanAndRanges[2]:
+  if meanMinus <= i <= meanPlus:
     True #arbitrary true
   else:
     # add to count b/c outside confidence interval
